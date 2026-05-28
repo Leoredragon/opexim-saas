@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { LogOut, Building2, TicketCheck, RefreshCw, Plus, X, Save, FileText } from "lucide-react";
+import toast from "react-hot-toast";
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -89,8 +90,9 @@ export default function AdminDashboard() {
       if (selectedTicket && selectedTicket.id === ticketId) {
         setSelectedTicket({ ...selectedTicket, status: newStatus });
       }
+      toast.success("Talep durumu güncellendi.");
     } else {
-      alert("Durum güncellenirken bir hata oluştu.");
+      toast.error("Durum güncellenirken bir hata oluştu.");
     }
     
     setUpdatingTicketId(null);
@@ -124,12 +126,12 @@ export default function AdminDashboard() {
         setNewCompanyEmail("");
         setNewCompanyPassword("");
         setIsCompanyModalOpen(false);
-        alert("Firma ve kullanıcı başarıyla oluşturuldu.");
+        toast.success("Firma ve yetkili hesabı başarıyla oluşturuldu.");
       } else {
-        alert("Hata: " + data.error);
+        toast.error("Hata: " + data.error);
       }
     } catch (error) {
-      alert("Firma eklenirken bir ağ hatası oluştu.");
+      toast.error("Firma eklenirken bir ağ hatası oluştu.");
     }
     
     setIsSubmittingCompany(false);
@@ -147,8 +149,9 @@ export default function AdminDashboard() {
       setCompanies(companies.map(company => 
         company.id === companyId ? { ...company, prevented_loss: newValue } : company
       ));
+      toast.success("Önlenen kayıp güncellendi.");
     } else {
-      alert("Önlenen kayıp güncellenirken bir hata oluştu.");
+      toast.error("Önlenen kayıp güncellenirken bir hata oluştu.");
     }
     
     setUpdatingCompanyId(null);

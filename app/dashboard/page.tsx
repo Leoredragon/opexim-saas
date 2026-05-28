@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { LogOut, Package, CheckCircle2, Clock, Plus, X, BarChart3, FileText } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
+import toast from "react-hot-toast";
 
 export default function DashboardPage() {
     const router = useRouter();
@@ -92,6 +93,7 @@ export default function DashboardPage() {
             setNewTitle("");
             setNewDescription("");
             setIsModalOpen(false);
+            toast.success("Talebiniz başarıyla iletildi. Ekibimiz en kısa sürede ilgilenecektir.");
         }
 
         setIsSubmitting(false);
