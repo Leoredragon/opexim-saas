@@ -41,7 +41,9 @@ export default function DashboardPage() {
             name,
             sector,
             package_type,
-            prevented_loss
+            is_vip,
+            payment_period,
+            payment_date
           )
         `)
                 .eq("id", session.user.id)
@@ -153,24 +155,28 @@ export default function DashboardPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
                   {/* Sol Taraf: Metrikler */}
                   <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="bg-white p-5 md:p-6 rounded-xl border border-gray-200 shadow-sm border-l-4 border-l-[#2e7d6e]">
-                          <div className="text-sm font-semibold text-[#6b6760] mb-1">Sistem Durumu</div>
-                          <div className="text-xl md:text-2xl font-bold text-[#1a1814] flex items-center gap-2">
-                              <CheckCircle2 className="text-[#2e7d6e]" size={24} /> Sorunsuz
+                      <div className="bg-white p-5 md:p-6 rounded-xl border border-gray-200 shadow-sm border-l-4 border-l-[#2e7d6e] flex flex-col justify-center">
+                          <div className="text-sm font-semibold text-[#6b6760] mb-1">Abonelik Durumu</div>
+                          <div className="text-lg md:text-xl font-bold text-[#1a1814] flex items-center gap-2">
+                              <CheckCircle2 className="text-[#2e7d6e]" size={22} /> Aktif ({userData?.companies?.package_type})
                           </div>
+                          {userData?.companies?.payment_date && (
+                              <div className="text-xs text-gray-500 mt-2">Sonraki Ödeme: {new Date(userData.companies.payment_date).toLocaleDateString('tr-TR')}</div>
+                          )}
                       </div>
 
-                      <div className="bg-white p-5 md:p-6 rounded-xl border border-gray-200 shadow-sm border-l-4 border-l-[#c4391a]">
-                          <div className="text-sm font-semibold text-[#6b6760] mb-1">Aktif Talepler</div>
-                          <div className="text-xl md:text-2xl font-bold text-[#1a1814]">{tickets.filter(t => t.status !== 'Tamamlandı').length}</div>
+                      <div className="bg-white p-5 md:p-6 rounded-xl border border-gray-200 shadow-sm border-l-4 border-l-[#c4391a] flex flex-col justify-center">
+                          <div className="text-sm font-semibold text-[#6b6760] mb-1">Açık Talepleriniz</div>
+                          <div className="text-2xl md:text-3xl font-bold text-[#1a1814]">{tickets.filter(t => t.status !== 'Tamamlandı').length}</div>
+                          <div className="text-xs text-gray-500 mt-1">İşlem bekleyen ve devam eden işleriniz</div>
                       </div>
 
-                      <div className="bg-white p-5 md:p-6 rounded-xl border border-gray-200 shadow-sm border-l-4 border-l-[#b8860b] sm:col-span-2">
-                          <div className="text-sm font-semibold text-[#6b6760] mb-1">Önlenen Potansiyel Kayıp</div>
-                          <div className="text-xl md:text-2xl font-bold text-[#1a1814]">
-                              {userData?.companies?.prevented_loss ? userData.companies.prevented_loss.toLocaleString('tr-TR') : 0} ₺
+                      <div className="bg-white p-5 md:p-6 rounded-xl border border-gray-200 shadow-sm border-l-4 border-l-[#1e4d8c] sm:col-span-2 flex flex-col justify-center">
+                          <div className="text-sm font-semibold text-[#6b6760] mb-1">Çözülen Talepler</div>
+                          <div className="text-2xl md:text-3xl font-bold text-[#1a1814]">
+                              {tickets.filter(t => t.status === 'Tamamlandı').length}
                           </div>
-                          <div className="text-xs text-[#8b5d00] mt-1">Bu ay tespit edilen stok ve cari farkları</div>
+                          <div className="text-xs text-[#1e4d8c] mt-1 font-medium">Şimdiye kadar başarıyla tamamlanan işlemleriniz</div>
                       </div>
                   </div>
 
@@ -266,7 +272,7 @@ export default function DashboardPage() {
 
             {/* Yeni Talep Modal */}
             {isModalOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+                <div className="fixed inset-0 bg-gray-900/40 z-50 flex items-center justify-center p-4 backdrop-blur-md">
                     <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
                         <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-[#f7f4ef]">
                             <h3 className="font-bold text-[#1a1814]">Yeni Talep Oluştur</h3>
@@ -286,7 +292,7 @@ export default function DashboardPage() {
                                     required
                                     value={newTitle}
                                     onChange={(e) => setNewTitle(e.target.value)}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2e7d6e] focus:border-transparent"
+                                    className="w-full px-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2e7d6e] focus:border-transparent"
                                     placeholder="Örn: E-Fatura iptali hk."
                                 />
                             </div>
@@ -298,7 +304,7 @@ export default function DashboardPage() {
                                     rows={4}
                                     value={newDescription}
                                     onChange={(e) => setNewDescription(e.target.value)}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2e7d6e] focus:border-transparent resize-none"
+                                    className="w-full px-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2e7d6e] focus:border-transparent resize-none"
                                     placeholder="Yaşadığınız sorunu veya talebinizi detaylıca anlatın..."
                                 ></textarea>
                             </div>
@@ -326,7 +332,7 @@ export default function DashboardPage() {
 
             {/* Talep Detay Modalı */}
             {selectedTicket && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+                <div className="fixed inset-0 bg-gray-900/40 z-50 flex items-center justify-center p-4 backdrop-blur-md">
                     <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[80vh]">
                         <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-[#f7f4ef]">
                             <div>
