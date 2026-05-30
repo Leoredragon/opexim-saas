@@ -16,7 +16,7 @@ const supabaseAdmin = createClient(
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { name, sector, package_type, email, password } = body;
+    const { name, sector, package_type, email, password, tax_id } = body;
 
     if (!name || !email || !password) {
       return NextResponse.json({ error: "Firma adı, e-posta ve şifre zorunludur." }, { status: 400 });
@@ -43,6 +43,7 @@ export async function POST(req: Request) {
           name: name,
           sector: sector,
           package_type: package_type,
+          tax_id: tax_id || null,
           prevented_loss: 0
         }
       ])
@@ -84,6 +85,37 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true, company: companyData }, { status: 201 });
 
+  } catch (error: any) {
+    return NextResponse.json({ error: "Sunucu hatası: " + error.message }, { status: 500 });
+  }
+}
+
+export async function PUT(req: Request) {
+  try {
+    const body = await req.json();
+    const { id, name, sector, package_type, tax_id } = body;
+
+    if (!id || !name) {
+      return NextResponse.json({ error: "Firma ID ve adı zorunludur." }, { status: 400 });
+    }
+
+    const { data: companyData, error: companyError } = await supabaseAdmin
+      .from("companies")
+      .update({
+        name: name,
+        sector: sector,
+        package_type: package_type,
+        tax_id: tax_id || null
+      })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (companyError) {
+      return NextResponse.json({ error: "Firma güncellenemedi: " + companyError.message }, { status: 400 });
+    }
+
+    return NextResponse.json({ success: true, company: companyData }, { status: 200 });
   } catch (error: any) {
     return NextResponse.json({ error: "Sunucu hatası: " + error.message }, { status: 500 });
   }

@@ -24,6 +24,16 @@ export default function AdminDashboard() {
   const [newCompanyName, setNewCompanyName] = useState("");
   const [newCompanySector, setNewCompanySector] = useState("");
   const [newCompanyPackage, setNewCompanyPackage] = useState("Temel");
+  const [newCompanyTaxId, setNewCompanyTaxId] = useState("");
+
+  // Düzenleme Modal State'leri
+  const [isEditCompanyModalOpen, setIsEditCompanyModalOpen] = useState(false);
+  const [editingCompanyId, setEditingCompanyId] = useState("");
+  const [editCompanyName, setEditCompanyName] = useState("");
+  const [editCompanySector, setEditCompanySector] = useState("");
+  const [editCompanyPackage, setEditCompanyPackage] = useState("Temel");
+  const [editCompanyTaxId, setEditCompanyTaxId] = useState("");
+  const [isSubmittingEditCompany, setIsSubmittingEditCompany] = useState(false);
   const [newCompanyEmail, setNewCompanyEmail] = useState("");
   const [newCompanyPassword, setNewCompanyPassword] = useState("");
   const [isSubmittingCompany, setIsSubmittingCompany] = useState(false);
@@ -115,6 +125,7 @@ export default function AdminDashboard() {
           name: newCompanyName,
           sector: newCompanySector,
           package_type: newCompanyPackage,
+          tax_id: newCompanyTaxId,
           email: newCompanyEmail,
           password: newCompanyPassword
         })
@@ -126,6 +137,7 @@ export default function AdminDashboard() {
         setCompanies([data.company, ...companies]);
         setNewCompanyName("");
         setNewCompanySector("");
+        setNewCompanyTaxId("");
         setNewCompanyPackage("Temel");
         setNewCompanyEmail("");
         setNewCompanyPassword("");
@@ -139,6 +151,48 @@ export default function AdminDashboard() {
     }
     
     setIsSubmittingCompany(false);
+  };
+
+  const openEditCompanyModal = (company: any) => {
+    setEditingCompanyId(company.id);
+    setEditCompanyName(company.name);
+    setEditCompanySector(company.sector || "");
+    setEditCompanyPackage(company.package_type || "Temel");
+    setEditCompanyTaxId(company.tax_id || "");
+    setIsEditCompanyModalOpen(true);
+  };
+
+  const handleUpdateCompany = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmittingEditCompany(true);
+
+    try {
+      const response = await fetch("/api/companies", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editingCompanyId,
+          name: editCompanyName,
+          sector: editCompanySector,
+          package_type: editCompanyPackage,
+          tax_id: editCompanyTaxId
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setCompanies(companies.map(c => c.id === editingCompanyId ? data.company : c));
+        setIsEditCompanyModalOpen(false);
+        toast.success("Firma başarıyla güncellendi.");
+      } else {
+        toast.error("Hata: " + data.error);
+      }
+    } catch (error) {
+      toast.error("Firma güncellenirken bir ağ hatası oluştu.");
+    }
+    
+    setIsSubmittingEditCompany(false);
   };
 
   const handleUpdatePreventedLoss = async (companyId: string, newValue: number) => {
@@ -168,7 +222,10 @@ export default function AdminDashboard() {
   const totalPreventedLoss = companies.reduce((acc, curr) => acc + (curr.prevented_loss || 0), 0);
   const pendingTicketsCount = tickets.filter(t => t.status === "Beklemede").length;
 
-  const filteredCompanies = companies.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredCompanies = companies.filter(c => 
+    c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    (c.tax_id && c.tax_id.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
   const filteredTickets = tickets.filter(t => ticketFilter === "Tümü" || t.status === ticketFilter);
 
   return (
@@ -246,17 +303,26 @@ export default function AdminDashboard() {
                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input 
                   type="text" 
-                  placeholder="Firma ara..."
+                  placeholder="Vergi No veya Firma ara..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1e4d8c] focus:border-transparent transition-all bg-gray-50"
+                  className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1e4d8c] focus:border-transparent transition-all bg-white text-gray-900"
                 />
               </div>
             </div>
             <div className="divide-y divide-gray-100 max-h-[400px] lg:max-h-[600px] overflow-y-auto">
               {filteredCompanies.map((company) => (
-                <div key={company.id} className="p-4 md:p-5 hover:bg-gray-50 transition-colors">
-                  <div className="font-bold text-[#1a1814] mb-1 text-sm md:text-base">{company.name}</div>
+                <div key={company.id} className="p-4 md:p-5 hover:bg-gray-50 transition-colors group relative">
+                  <div className="flex justify-between items-start mb-1">
+                    <div className="font-bold text-[#1a1814] text-sm md:text-base">{company.name}</div>
+                    <button 
+                      onClick={() => openEditCompanyModal(company)}
+                      className="text-xs text-[#1e4d8c] bg-[#e4eef8] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity font-medium"
+                    >
+                      Düzenle
+                    </button>
+                  </div>
+                  {company.tax_id && <div className="text-[10px] text-gray-500 mb-1">VKN/TCKN: {company.tax_id}</div>}
                   <div className="flex justify-between items-center text-xs mb-3">
                     <span className="text-[#6b6760]">{company.sector}</span>
                     <span className={`font-semibold px-2 py-0.5 rounded
@@ -401,8 +467,19 @@ export default function AdminDashboard() {
                   required
                   value={newCompanyName}
                   onChange={(e) => setNewCompanyName(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#1e4d8c]"
+                  className="w-full px-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#1e4d8c]"
                   placeholder="Örn: Güven Nalburiye"
+                />
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-[#3d3933] mb-1">Vergi No / TCKN</label>
+                <input
+                  type="text"
+                  value={newCompanyTaxId}
+                  onChange={(e) => setNewCompanyTaxId(e.target.value)}
+                  className="w-full px-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#1e4d8c]"
+                  placeholder="Örn: 1234567890"
                 />
               </div>
               
@@ -413,7 +490,7 @@ export default function AdminDashboard() {
                   required
                   value={newCompanySector}
                   onChange={(e) => setNewCompanySector(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#1e4d8c]"
+                  className="w-full px-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#1e4d8c]"
                   placeholder="Örn: Hırdavat / Yapı Market"
                 />
               </div>
@@ -423,7 +500,7 @@ export default function AdminDashboard() {
                 <select
                   value={newCompanyPackage}
                   onChange={(e) => setNewCompanyPackage(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#1e4d8c] bg-white"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#1e4d8c] bg-white text-gray-900"
                 >
                   <option value="Temel">Temel Paket (Aylık Uzaktan)</option>
                   <option value="Standart">Standart Paket (Aylık 1 Saha Ziyareti)</option>
@@ -439,7 +516,7 @@ export default function AdminDashboard() {
                   required
                   value={newCompanyEmail}
                   onChange={(e) => setNewCompanyEmail(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#1e4d8c]"
+                  className="w-full px-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#1e4d8c]"
                   placeholder="ornek@firma.com"
                 />
               </div>
@@ -451,7 +528,7 @@ export default function AdminDashboard() {
                   required
                   value={newCompanyPassword}
                   onChange={(e) => setNewCompanyPassword(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#1e4d8c]"
+                  className="w-full px-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#1e4d8c]"
                   placeholder="Örn: GuvenNalburiye123!"
                 />
                 <p className="text-xs text-gray-500 mt-1">Lütfen karmaşık olmayan ve akılda kalıcı bir şifre belirleyin.</p>
@@ -471,6 +548,87 @@ export default function AdminDashboard() {
                   className="bg-[#1e4d8c] text-white px-5 py-2 rounded-md text-sm font-semibold hover:bg-opacity-90 transition-colors disabled:opacity-70"
                 >
                   {isSubmittingCompany ? "Kaydediliyor..." : "Firmayı Kaydet"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Müşteri Düzenle Modal */}
+      {isEditCompanyModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-[#f7f4ef] flex-shrink-0">
+              <h3 className="font-bold text-[#1a1814]">Müşteri Bilgilerini Düzenle</h3>
+              <button 
+                onClick={() => setIsEditCompanyModalOpen(false)}
+                className="text-gray-400 hover:text-[#9b2010] transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleUpdateCompany} className="p-6 overflow-y-auto">
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-[#3d3933] mb-1">Firma Adı</label>
+                <input
+                  type="text"
+                  required
+                  value={editCompanyName}
+                  onChange={(e) => setEditCompanyName(e.target.value)}
+                  className="w-full px-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#1e4d8c]"
+                />
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-[#3d3933] mb-1">Vergi No / TCKN</label>
+                <input
+                  type="text"
+                  value={editCompanyTaxId}
+                  onChange={(e) => setEditCompanyTaxId(e.target.value)}
+                  className="w-full px-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#1e4d8c]"
+                />
+              </div>
+              
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-[#3d3933] mb-1">Sektör</label>
+                <input
+                  type="text"
+                  required
+                  value={editCompanySector}
+                  onChange={(e) => setEditCompanySector(e.target.value)}
+                  className="w-full px-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#1e4d8c]"
+                />
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-[#3d3933] mb-1">Abonelik Paketi</label>
+                <select
+                  value={editCompanyPackage}
+                  onChange={(e) => setEditCompanyPackage(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#1e4d8c] bg-white text-gray-900"
+                >
+                  <option value="Temel">Temel Paket (Aylık Uzaktan)</option>
+                  <option value="Standart">Standart Paket (Aylık 1 Saha Ziyareti)</option>
+                  <option value="Premium">Premium Paket (Aylık 2 Saha Ziyareti)</option>
+                </select>
+              </div>
+              
+              <div className="flex gap-3 justify-end flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIsEditCompanyModalOpen(false)}
+                  className="px-4 py-2 text-sm font-medium text-[#6b6760] hover:text-[#1a1814] transition-colors"
+                >
+                  İptal
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingEditCompany}
+                  className="bg-[#1e4d8c] text-white px-5 py-2 rounded-md text-sm font-semibold hover:bg-opacity-90 transition-colors disabled:opacity-70"
+                >
+                  {isSubmittingEditCompany ? "Güncelleniyor..." : "Güncelle"}
                 </button>
               </div>
             </form>
