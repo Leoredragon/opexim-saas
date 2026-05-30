@@ -77,28 +77,35 @@ export default function DashboardPage() {
         e.preventDefault();
         setIsSubmitting(true);
 
-        const { data, error } = await supabase
-            .from("tickets")
-            .insert([
-                {
-                    company_id: userData.company_id,
-                    title: newTitle,
-                    description: newDescription,
-                    status: "Beklemede"
-                }
-            ])
-            .select()
-            .single();
+        try {
+            const { data, error } = await supabase
+                .from("tickets")
+                .insert([
+                    {
+                        company_id: userData.company_id,
+                        title: newTitle,
+                        description: newDescription,
+                        status: "Beklemede"
+                    }
+                ])
+                .select();
 
-        if (data) {
-            setTickets([data, ...tickets]);
-            setNewTitle("");
-            setNewDescription("");
-            setIsModalOpen(false);
-            toast.success("Talebiniz başarıyla iletildi. Ekibimiz en kısa sürede ilgilenecektir.");
+            if (error) {
+                console.error("Supabase Error:", error);
+                toast.error("Talep oluşturulamadı: " + (error.message || "Bilinmeyen bir hata"));
+            } else if (data && data.length > 0) {
+                setTickets([data[0], ...tickets]);
+                setNewTitle("");
+                setNewDescription("");
+                setIsModalOpen(false);
+                toast.success("Talebiniz başarıyla iletildi. Ekibimiz en kısa sürede ilgilenecektir.");
+            }
+        } catch (err: any) {
+            console.error("Catch Error:", err);
+            toast.error("Beklenmeyen bir hata oluştu: " + (err.message || ""));
+        } finally {
+            setIsSubmitting(false);
         }
-
-        setIsSubmitting(false);
     };
 
     // Grafik Verisi Hesaplama
