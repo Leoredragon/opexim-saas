@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { LogOut, Building2, TicketCheck, RefreshCw, Plus, X, Save, FileText } from "lucide-react";
+import { LogOut, Building2, TicketCheck, RefreshCw, Plus, X, Save, FileText, Search, Filter, Activity, TrendingUp } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function AdminDashboard() {
@@ -14,6 +14,10 @@ export default function AdminDashboard() {
   const [companies, setCompanies] = useState<any[]>([]);
   const [updatingTicketId, setUpdatingTicketId] = useState<string | null>(null);
   const [updatingCompanyId, setUpdatingCompanyId] = useState<string | null>(null);
+
+  // Arama ve Filtreleme
+  const [searchQuery, setSearchQuery] = useState("");
+  const [ticketFilter, setTicketFilter] = useState("Tümü");
 
   // Yeni Firma Ekleme Modal State'leri
   const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
@@ -161,6 +165,12 @@ export default function AdminDashboard() {
     return <div className="min-h-screen bg-[#1a1814] flex items-center justify-center font-medium text-[#f7f4ef]">Yönetim paneli yükleniyor...</div>;
   }
 
+  const totalPreventedLoss = companies.reduce((acc, curr) => acc + (curr.prevented_loss || 0), 0);
+  const pendingTicketsCount = tickets.filter(t => t.status === "Beklemede").length;
+
+  const filteredCompanies = companies.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredTickets = tickets.filter(t => ticketFilter === "Tümü" || t.status === ticketFilter);
+
   return (
     <div className="min-h-screen bg-[#ede9e2] font-sans relative">
       {/* Yönetici Üst Menü */}
@@ -182,26 +192,69 @@ export default function AdminDashboard() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto p-4 md:p-8 grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
-        
+      <main className="max-w-7xl mx-auto p-4 md:p-8 flex flex-col gap-6 md:gap-8">
+        {/* İstatistik Kartları */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+          <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow flex items-center gap-4">
+            <div className="p-3 bg-[#e4eef8] text-[#1e4d8c] rounded-lg">
+              <Building2 size={24} />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 font-medium">Toplam Müşteri</p>
+              <h3 className="text-2xl font-bold text-[#1a1814]">{companies.length}</h3>
+            </div>
+          </div>
+          <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow flex items-center gap-4">
+            <div className="p-3 bg-[#fdf3d0] text-[#8b5d00] rounded-lg">
+              <Activity size={24} />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 font-medium">Bekleyen Talepler</p>
+              <h3 className="text-2xl font-bold text-[#1a1814]">{pendingTicketsCount}</h3>
+            </div>
+          </div>
+          <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow flex items-center gap-4">
+            <div className="p-3 bg-[#e4f3ee] text-[#1a5c40] rounded-lg">
+              <TrendingUp size={24} />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 font-medium">Önlenen Toplam Kayıp</p>
+              <h3 className="text-2xl font-bold text-[#1a1814]">₺{totalPreventedLoss.toLocaleString('tr-TR')}</h3>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
         {/* Sol Kolon: Tüm Firmalar (KOBİ'ler) */}
         <div className="lg:col-span-1">
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-full">
             <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between bg-[#f7f4ef]">
               <div className="flex items-center gap-2">
                 <Building2 className="text-[#1e4d8c]" size={20} />
                 <h2 className="text-base md:text-lg font-bold text-[#1a1814]">Aktif Müşteriler</h2>
-                <span className="bg-[#1e4d8c] text-white text-xs font-bold px-2 py-1 rounded-full">{companies.length}</span>
+                <span className="bg-[#1e4d8c] text-white text-xs font-bold px-2 py-1 rounded-full">{filteredCompanies.length}</span>
               </div>
               <button 
                 onClick={() => setIsCompanyModalOpen(true)}
-                className="flex items-center gap-1 text-xs bg-[#1e4d8c] text-white px-2 py-1.5 rounded hover:bg-opacity-80 transition-colors font-medium"
+                className="flex items-center gap-1 text-xs bg-[#1e4d8c] text-white px-2 py-1.5 rounded-md hover:bg-opacity-80 transition-colors font-medium"
               >
                 <Plus size={14} /> Yeni
               </button>
             </div>
+            <div className="p-3 border-b border-gray-100 bg-white">
+              <div className="relative">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input 
+                  type="text" 
+                  placeholder="Firma ara..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1e4d8c] focus:border-transparent transition-all bg-gray-50"
+                />
+              </div>
+            </div>
             <div className="divide-y divide-gray-100 max-h-[400px] lg:max-h-[600px] overflow-y-auto">
-              {companies.map((company) => (
+              {filteredCompanies.map((company) => (
                 <div key={company.id} className="p-4 md:p-5 hover:bg-gray-50 transition-colors">
                   <div className="font-bold text-[#1a1814] mb-1 text-sm md:text-base">{company.name}</div>
                   <div className="flex justify-between items-center text-xs mb-3">
@@ -233,9 +286,9 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               ))}
-              {companies.length === 0 && (
+              {filteredCompanies.length === 0 && (
                 <div className="p-6 text-center text-[#6b6760] text-sm">
-                  Henüz kayıtlı müşteri bulunmuyor.
+                  Kayıtlı veya aramanızla eşleşen müşteri bulunamadı.
                 </div>
               )}
             </div>
@@ -244,10 +297,25 @@ export default function AdminDashboard() {
 
         {/* Sağ Kolon: Gelen Tüm Talepler / İşler */}
         <div className="lg:col-span-2">
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-200 flex items-center gap-2 bg-[#f7f4ef]">
-              <TicketCheck className="text-[#c4391a]" size={20} />
-              <h2 className="text-base md:text-lg font-bold text-[#1a1814]">Bekleyen İşler & Talepler</h2>
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden h-full flex flex-col">
+            <div className="px-5 py-4 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#f7f4ef]">
+              <div className="flex items-center gap-2">
+                <TicketCheck className="text-[#c4391a]" size={20} />
+                <h2 className="text-base md:text-lg font-bold text-[#1a1814]">İşler & Talepler</h2>
+              </div>
+              <div className="flex items-center gap-2">
+                <Filter size={16} className="text-gray-400" />
+                <select 
+                  value={ticketFilter}
+                  onChange={(e) => setTicketFilter(e.target.value)}
+                  className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#1e4d8c] bg-white transition-all text-[#3d3933] font-medium"
+                >
+                  <option value="Tümü">Tümü</option>
+                  <option value="Beklemede">Beklemede</option>
+                  <option value="Devam Ediyor">Devam Ediyor</option>
+                  <option value="Tamamlandı">Tamamlandı</option>
+                </select>
+              </div>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left min-w-[650px]">
@@ -260,7 +328,7 @@ export default function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {tickets.map((ticket) => (
+                  {filteredTickets.map((ticket) => (
                     <tr key={ticket.id} className="hover:bg-[#f7f4ef] transition-colors">
                       <td className="px-4 md:px-6 py-4 font-semibold text-[#1a1814]">{ticket.companies?.name}</td>
                       <td 
@@ -296,10 +364,10 @@ export default function AdminDashboard() {
                       </td>
                     </tr>
                   ))}
-                  {tickets.length === 0 && (
+                  {filteredTickets.length === 0 && (
                     <tr>
                       <td colSpan={4} className="px-6 py-8 text-center text-[#6b6760]">
-                        Şu an bekleyen hiçbir iş yok.
+                        Şu an filtreye uygun hiçbir iş yok.
                       </td>
                     </tr>
                   )}
@@ -307,6 +375,7 @@ export default function AdminDashboard() {
               </table>
             </div>
           </div>
+        </div>
         </div>
       </main>
 
