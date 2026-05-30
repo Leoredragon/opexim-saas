@@ -16,7 +16,7 @@ const supabaseAdmin = createClient(
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { name, sector, package_type, email, password, tax_id } = body;
+    const { name, sector, package_type, email, password, tax_id, is_vip, payment_date, payment_period } = body;
 
     if (!name || !email || !password) {
       return NextResponse.json({ error: "Firma adı, e-posta ve şifre zorunludur." }, { status: 400 });
@@ -44,7 +44,9 @@ export async function POST(req: Request) {
           sector: sector,
           package_type: package_type,
           tax_id: tax_id || null,
-          prevented_loss: 0
+          is_vip: is_vip || false,
+          payment_date: payment_date || null,
+          payment_period: payment_period || null
         }
       ])
       .select()
@@ -93,7 +95,7 @@ export async function POST(req: Request) {
 export async function PUT(req: Request) {
   try {
     const body = await req.json();
-    const { id, name, sector, package_type, tax_id } = body;
+    const { id, name, sector, package_type, tax_id, is_vip, payment_date, payment_period } = body;
 
     if (!id || !name) {
       return NextResponse.json({ error: "Firma ID ve adı zorunludur." }, { status: 400 });
@@ -105,7 +107,10 @@ export async function PUT(req: Request) {
         name: name,
         sector: sector,
         package_type: package_type,
-        tax_id: tax_id || null
+        tax_id: tax_id || null,
+        is_vip: is_vip || false,
+        payment_date: payment_date || null,
+        payment_period: payment_period || null
       })
       .eq("id", id)
       .select()

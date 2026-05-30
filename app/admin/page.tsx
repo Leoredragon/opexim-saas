@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { LogOut, Building2, TicketCheck, RefreshCw, Plus, X, Save, FileText, Search, Filter, Activity, TrendingUp } from "lucide-react";
+import { LogOut, Building2, TicketCheck, RefreshCw, Plus, X, Save, FileText, Search, Filter, Activity, Crown, ChevronLeft, ChevronRight, Calendar } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function AdminDashboard() {
@@ -18,6 +19,10 @@ export default function AdminDashboard() {
   // Arama ve Filtreleme
   const [searchQuery, setSearchQuery] = useState("");
   const [ticketFilter, setTicketFilter] = useState("Tümü");
+  const [ticketSearch, setTicketSearch] = useState("");
+  const [ticketSort, setTicketSort] = useState("newest");
+  const [ticketPage, setTicketPage] = useState(1);
+  const TICKETS_PER_PAGE = 20;
 
   // Yeni Firma Ekleme Modal State'leri
   const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
@@ -195,38 +200,35 @@ export default function AdminDashboard() {
     setIsSubmittingEditCompany(false);
   };
 
-  const handleUpdatePreventedLoss = async (companyId: string, newValue: number) => {
-    setUpdatingCompanyId(companyId);
-    
-    const { error } = await supabase
-      .from("companies")
-      .update({ prevented_loss: newValue })
-      .eq("id", companyId);
-
-    if (!error) {
-      setCompanies(companies.map(company => 
-        company.id === companyId ? { ...company, prevented_loss: newValue } : company
-      ));
-      toast.success("Önlenen kayıp güncellendi.");
-    } else {
-      toast.error("Önlenen kayıp güncellenirken bir hata oluştu.");
-    }
-    
-    setUpdatingCompanyId(null);
-  };
+  // handleUpdatePreventedLoss removed
 
   if (loading) {
     return <div className="min-h-screen bg-[#1a1814] flex items-center justify-center font-medium text-[#f7f4ef]">Yönetim paneli yükleniyor...</div>;
   }
 
-  const totalPreventedLoss = companies.reduce((acc, curr) => acc + (curr.prevented_loss || 0), 0);
+  const vipCustomersCount = companies.filter(c => c.is_vip).length;
   const pendingTicketsCount = tickets.filter(t => t.status === "Beklemede").length;
 
   const filteredCompanies = companies.filter(c => 
     c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
     (c.tax_id && c.tax_id.toLowerCase().includes(searchQuery.toLowerCase()))
   );
-  const filteredTickets = tickets.filter(t => ticketFilter === "Tümü" || t.status === ticketFilter);
+  
+  let processedTickets = tickets.filter(t => {
+    const matchFilter = ticketFilter === "Tümü" || t.status === ticketFilter;
+    const matchSearch = (t.title && t.title.toLowerCase().includes(ticketSearch.toLowerCase())) || 
+                        (t.companies?.name && t.companies.name.toLowerCase().includes(ticketSearch.toLowerCase()));
+    return matchFilter && matchSearch;
+  });
+
+  if (ticketSort === "oldest") {
+    processedTickets = processedTickets.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  } else {
+    processedTickets = processedTickets.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }
+
+  const totalTicketPages = Math.ceil(processedTickets.length / TICKETS_PER_PAGE);
+  const currentTickets = processedTickets.slice((ticketPage - 1) * TICKETS_PER_PAGE, ticketPage * TICKETS_PER_PAGE);
 
   return (
     <div className="min-h-screen bg-[#ede9e2] font-sans relative">
@@ -271,12 +273,12 @@ export default function AdminDashboard() {
             </div>
           </div>
           <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow flex items-center gap-4">
-            <div className="p-3 bg-[#e4f3ee] text-[#1a5c40] rounded-lg">
-              <TrendingUp size={24} />
+            <div className="p-3 bg-[#fefce8] text-[#eab308] rounded-lg">
+              <Crown size={24} />
             </div>
             <div>
-              <p className="text-sm text-gray-500 font-medium">Önlenen Toplam Kayıp</p>
-              <h3 className="text-2xl font-bold text-[#1a1814]">₺{totalPreventedLoss.toLocaleString('tr-TR')}</h3>
+              <p className="text-sm text-gray-500 font-medium">VIP Müşteriler</p>
+              <h3 className="text-2xl font-bold text-[#1a1814]">{vipCustomersCount}</h3>
             </div>
           </div>
         </div>
@@ -288,7 +290,9 @@ export default function AdminDashboard() {
             <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between bg-[#f7f4ef]">
               <div className="flex items-center gap-2">
                 <Building2 className="text-[#1e4d8c]" size={20} />
-                <h2 className="text-base md:text-lg font-bold text-[#1a1814]">Aktif Müşteriler</h2>
+                <Link href="/admin/customers" className="text-base md:text-lg font-bold text-[#1a1814] hover:text-[#1e4d8c] hover:underline transition-all">
+                  Aktif Müşteriler
+                </Link>
                 <span className="bg-[#1e4d8c] text-white text-xs font-bold px-2 py-1 rounded-full">{filteredCompanies.length}</span>
               </div>
               <button 
@@ -314,7 +318,10 @@ export default function AdminDashboard() {
               {filteredCompanies.map((company) => (
                 <div key={company.id} className="p-4 md:p-5 hover:bg-gray-50 transition-colors group relative">
                   <div className="flex justify-between items-start mb-1">
-                    <div className="font-bold text-[#1a1814] text-sm md:text-base">{company.name}</div>
+                    <div className="flex items-center gap-2">
+                      <div className="font-bold text-[#1a1814] text-sm md:text-base">{company.name}</div>
+                      {company.is_vip && <Crown size={14} className="text-[#eab308]" fill="#eab308" />}
+                    </div>
                     <button 
                       onClick={() => openEditCompanyModal(company)}
                       className="text-xs text-[#1e4d8c] bg-[#e4eef8] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity font-medium"
@@ -322,7 +329,10 @@ export default function AdminDashboard() {
                       Düzenle
                     </button>
                   </div>
-                  {company.tax_id && <div className="text-[10px] text-gray-500 mb-1">VKN/TCKN: {company.tax_id}</div>}
+                  <div className="flex items-center gap-2 mb-1">
+                    {company.tax_id && <span className="text-[10px] text-gray-500">VKN/TCKN: {company.tax_id}</span>}
+                    {company.payment_period && <span className="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-600">{company.payment_period} Ödeme</span>}
+                  </div>
                   <div className="flex justify-between items-center text-xs mb-3">
                     <span className="text-[#6b6760]">{company.sector}</span>
                     <span className={`font-semibold px-2 py-0.5 rounded
@@ -331,24 +341,6 @@ export default function AdminDashboard() {
                         'bg-[#e4f3ee] text-[#1a5c40]'}`}>
                       {company.package_type}
                     </span>
-                  </div>
-                  <div className="flex items-center justify-between bg-[#f7f4ef] p-2 rounded border border-gray-100">
-                    <span className="text-xs text-[#6b6760] font-medium">Önlenen Kayıp:</span>
-                    <div className="flex items-center gap-2">
-                      <input 
-                        type="number" 
-                        defaultValue={company.prevented_loss || 0}
-                        onBlur={(e) => {
-                          const val = parseInt(e.target.value);
-                          if (!isNaN(val) && val !== company.prevented_loss) {
-                            handleUpdatePreventedLoss(company.id, val);
-                          }
-                        }}
-                        className="w-20 px-2 py-1 text-xs border border-gray-300 rounded text-right focus:outline-none focus:border-[#1e4d8c]"
-                      />
-                      <span className="text-xs font-semibold text-[#1a1814]">₺</span>
-                      {updatingCompanyId === company.id && <RefreshCw size={12} className="animate-spin text-[#1e4d8c]" />}
-                    </div>
                   </div>
                 </div>
               ))}
@@ -369,18 +361,40 @@ export default function AdminDashboard() {
                 <TicketCheck className="text-[#c4391a]" size={20} />
                 <h2 className="text-base md:text-lg font-bold text-[#1a1814]">İşler & Talepler</h2>
               </div>
-              <div className="flex items-center gap-2">
-                <Filter size={16} className="text-gray-400" />
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="relative">
+                  <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input 
+                    type="text" 
+                    placeholder="Talep veya firma ara..."
+                    value={ticketSearch}
+                    onChange={(e) => { setTicketSearch(e.target.value); setTicketPage(1); }}
+                    className="pl-8 pr-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1e4d8c] bg-white text-gray-900 w-full sm:w-48"
+                  />
+                </div>
                 <select 
-                  value={ticketFilter}
-                  onChange={(e) => setTicketFilter(e.target.value)}
-                  className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#1e4d8c] bg-white transition-all text-[#3d3933] font-medium"
+                  value={ticketSort}
+                  onChange={(e) => { setTicketSort(e.target.value); setTicketPage(1); }}
+                  className="text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#1e4d8c] bg-white text-gray-900 font-medium"
                 >
-                  <option value="Tümü">Tümü</option>
-                  <option value="Beklemede">Beklemede</option>
-                  <option value="Devam Ediyor">Devam Ediyor</option>
-                  <option value="Tamamlandı">Tamamlandı</option>
+                  <option value="newest">En Yeni</option>
+                  <option value="oldest">En Eski</option>
                 </select>
+                <div className="flex items-center border border-gray-200 rounded-lg bg-white overflow-hidden">
+                  <div className="px-2 py-1.5 bg-gray-50 border-r border-gray-200">
+                    <Filter size={14} className="text-gray-500" />
+                  </div>
+                  <select 
+                    value={ticketFilter}
+                    onChange={(e) => { setTicketFilter(e.target.value); setTicketPage(1); }}
+                    className="text-sm px-2 py-1.5 focus:outline-none focus:ring-0 bg-transparent text-gray-900 font-medium border-none outline-none ring-0"
+                  >
+                    <option value="Tümü">Tümü</option>
+                    <option value="Beklemede">Beklemede</option>
+                    <option value="Devam Ediyor">Devam Ediyor</option>
+                    <option value="Tamamlandı">Tamamlandı</option>
+                  </select>
+                </div>
               </div>
             </div>
             <div className="overflow-x-auto">
@@ -394,7 +408,7 @@ export default function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {filteredTickets.map((ticket) => (
+                  {currentTickets.map((ticket) => (
                     <tr key={ticket.id} className="hover:bg-[#f7f4ef] transition-colors">
                       <td className="px-4 md:px-6 py-4 font-semibold text-[#1a1814]">{ticket.companies?.name}</td>
                       <td 
@@ -430,7 +444,7 @@ export default function AdminDashboard() {
                       </td>
                     </tr>
                   ))}
-                  {filteredTickets.length === 0 && (
+                  {currentTickets.length === 0 && (
                     <tr>
                       <td colSpan={4} className="px-6 py-8 text-center text-[#6b6760]">
                         Şu an filtreye uygun hiçbir iş yok.
@@ -440,6 +454,31 @@ export default function AdminDashboard() {
                 </tbody>
               </table>
             </div>
+            
+            {/* Pagination Controls */}
+            {totalTicketPages > 1 && (
+              <div className="px-5 py-3 border-t border-gray-200 bg-white flex items-center justify-between mt-auto">
+                <div className="text-xs text-gray-500">
+                  Toplam <span className="font-semibold text-gray-900">{processedTickets.length}</span> kayıt, <span className="font-semibold text-gray-900">{ticketPage}</span>. sayfa gösteriliyor
+                </div>
+                <div className="flex gap-1">
+                  <button 
+                    onClick={() => setTicketPage(prev => Math.max(prev - 1, 1))}
+                    disabled={ticketPage === 1}
+                    className="p-1 rounded border border-gray-200 text-gray-600 disabled:opacity-50 hover:bg-gray-50 transition-colors"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <button 
+                    onClick={() => setTicketPage(prev => Math.min(prev + 1, totalTicketPages))}
+                    disabled={ticketPage === totalTicketPages}
+                    className="p-1 rounded border border-gray-200 text-gray-600 disabled:opacity-50 hover:bg-gray-50 transition-colors"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
         </div>
@@ -447,7 +486,7 @@ export default function AdminDashboard() {
 
       {/* Yeni Firma Ekleme Modal */}
       {isCompanyModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 bg-gray-900/40 z-50 flex items-center justify-center p-4 backdrop-blur-md">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
             <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-[#f7f4ef] flex-shrink-0">
               <h3 className="font-bold text-[#1a1814]">Yeni Müşteri KOBİ Ekle</h3>
@@ -557,7 +596,7 @@ export default function AdminDashboard() {
 
       {/* Müşteri Düzenle Modal */}
       {isEditCompanyModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 bg-gray-900/40 z-50 flex items-center justify-center p-4 backdrop-blur-md">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
             <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-[#f7f4ef] flex-shrink-0">
               <h3 className="font-bold text-[#1a1814]">Müşteri Bilgilerini Düzenle</h3>
@@ -638,7 +677,7 @@ export default function AdminDashboard() {
 
       {/* Talep Detay Modalı (Admin) */}
       {selectedTicket && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 bg-gray-900/40 z-50 flex items-center justify-center p-4 backdrop-blur-md">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[80vh]">
             <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-[#f7f4ef]">
               <div>
